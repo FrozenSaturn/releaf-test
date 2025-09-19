@@ -1,14 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import { Redirect } from 'expo-router';
+import React from 'react';
 
-const Home = () => {
-  return (
-    <View>
-      <Text>Home</Text>
-    </View>
-  )
+export default function StartPage() {
+  // This page will handle initial logic, like checking if the user is logged in.
+  // For now, we'll just redirect to the auth flow.
+  return <Redirect href="/(auth)/login" />;
 }
-
-export default Home
-
-const styles = StyleSheet.create({})
