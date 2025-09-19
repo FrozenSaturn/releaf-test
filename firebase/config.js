@@ -1,10 +1,8 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import { initializeFirestore } from "firebase/firestore";
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
-// IMPORTANT: Replace this with your own Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAfphJ-3ANVn0ACzln4ZSOs6L1Z7vfxmE0",
   authDomain: "releaf-test-a31e7.firebaseapp.com",
@@ -15,15 +13,16 @@ const firebaseConfig = {
   measurementId: "G-6M5F0F7NR9"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Auth with persistence
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
 });
 
-// Initialize Cloud Firestore and get a reference to the service
-const db = getFirestore(app);
+// Critical: force long‑polling in RN and disable fetch streams
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
+});
 
 export { app, auth, db };

@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthLayout = () => {
     const segments = useSegments();
@@ -27,8 +28,16 @@ const AuthLayout = () => {
         const inAuthGroup = segments[0] === '(auth)';
 
         if (user && inAuthGroup) {
-            // If the user is signed in and in the auth group, redirect to the main app
-            router.replace('/(tabs)/map');
+            // Check user type and redirect accordingly
+            const checkUserType = async () => {
+                const userType = await AsyncStorage.getItem('userType');
+                if (userType === 'teacher') {
+                    router.replace('/(teacher)/dashboard');
+                } else {
+                    router.replace('/(tabs)/map');
+                }
+            };
+            checkUserType();
         } else if (!user && !inAuthGroup) {
             // If the user is not signed in and not in the auth group, redirect to the login screen
             router.replace('/(auth)/login');
