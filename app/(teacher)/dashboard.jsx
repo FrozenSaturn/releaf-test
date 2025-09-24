@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, Image } from 'react-native';
 import { Link } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 
 // Hardcoded teacher data
 const TEACHER_DATA = {
@@ -37,6 +38,10 @@ const TOP_STUDENTS = [
 
 export default function TeacherDashboard() {
   const [exportingData, setExportingData] = useState(false);
+  const [showMissionModal, setShowMissionModal] = useState(false);
+  const [missionDescription, setMissionDescription] = useState('');
+  const [missionImage, setMissionImage] = useState(null);
+  const [missionLocation, setMissionLocation] = useState(null);
 
   const handleLogout = async () => {
     try {
@@ -54,6 +59,77 @@ export default function TeacherDashboard() {
       setExportingData(false);
       Alert.alert('Export Complete', 'Student activity data has been exported to CSV format.');
     }, 2000);
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Location permission is needed to assign missions.');
+        return null;
+      }
+
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      return location;
+    } catch (error) {
+      Alert.alert('Error', 'Could not get current location. Please try again.');
+      return null;
+    }
+  };
+
+  const handleCreateMission = async () => {
+    if (!missionDescription.trim()) {
+      Alert.alert('Error', 'Please enter a mission description.');
+      return;
+    }
+
+    try {
+      const location = await getCurrentLocation();
+      if (!location) return;
+
+      const newMission = {
+        id: Date.now().toString(),
+        teacherId: auth.currentUser?.uid || 'teacher_anonymous',
+        teacherName: auth.currentUser?.displayName || 'Teacher',
+        description: missionDescription.trim(),
+        imageUri: missionImage,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        createdAt: new Date().toISOString(),
+        status: 'active', // active, completed, expired
+        acceptedBy: null,
+        completedAt: null
+      };
+
+      // Load existing missions
+      const existingMissions = await AsyncStorage.getItem('teacherMissions');
+      const missions = existingMissions ? JSON.parse(existingMissions) : [];
+      
+      // Add new mission
+      missions.push(newMission);
+      
+      // Save back to storage
+      await AsyncStorage.setItem('teacherMissions', JSON.stringify(missions));
+
+      // Reset form
+      setMissionDescription('');
+      setMissionImage(null);
+      setShowMissionModal(false);
+
+      Alert.alert('Success!', 'Mission created successfully! Students can now see and accept this mission.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create mission. Please try again.');
+      console.error('Mission creation error:', error);
+    }
+  };
+
+  const handleAddImage = () => {
+    // For now, we'll use a mock image
+    // In a real app, you'd use expo-image-picker here
+    setMissionImage('mock_mission_image_' + Date.now());
+    Alert.alert('Image Added', 'Mission image added successfully!');
   };
 
   return (
@@ -120,6 +196,13 @@ export default function TeacherDashboard() {
 
       {/* Action Buttons */}
       <View style={styles.buttonsContainer}>
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.missionButton]} 
+          onPress={() => setShowMissionModal(true)}
+        >
+          <Text style={styles.actionButtonText}>🎯 Create Mission</Text>
+        </TouchableOpacity>
+
         <Link href="/(teacher)/approvals" asChild>
           <TouchableOpacity style={styles.actionButton}>
             <Text style={styles.actionButtonText}>Mission Approvals</Text>
@@ -136,6 +219,56 @@ export default function TeacherDashboard() {
           <Text style={styles.actionButtonText}>Log Out</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Mission Creation Modal */}
+      <Modal
+        visible={showMissionModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowMissionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🎯 Create New Mission</Text>
+            
+            <Text style={styles.inputLabel}>Mission Description:</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter mission description (e.g., 'Plant 5 trees in the school garden')"
+              value={missionDescription}
+              onChangeText={setMissionDescription}
+              multiline={true}
+              numberOfLines={4}
+            />
+            
+            <Text style={styles.inputLabel}>Mission Image (Optional):</Text>
+            <TouchableOpacity style={styles.imageButton} onPress={handleAddImage}>
+              <Text style={styles.imageButtonText}>
+                {missionImage ? '📷 Image Added' : '📷 Add Image'}
+              </Text>
+            </TouchableOpacity>
+            
+            <Text style={styles.locationNote}>
+              📍 Mission will be created at your current location
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={() => setShowMissionModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.createButton]} 
+                onPress={handleCreateMission}
+              >
+                <Text style={styles.createButtonText}>Create Mission</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -278,5 +411,91 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: '#d9534f',
+  },
+  missionButton: {
+    backgroundColor: '#FF6B35',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 15,
+    textAlignVertical: 'top',
+  },
+  imageButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  imageButtonText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  locationNote: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#f5f5f5',
+  },
+  createButton: {
+    backgroundColor: '#FF6B35',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

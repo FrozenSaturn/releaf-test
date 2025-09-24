@@ -52,18 +52,31 @@ export default function ProfileScreen() {
   }, []);
 
   const handleClearMyTrees = async () => {
-    try {
-      const uid = auth.currentUser?.uid;
-      const raw = await AsyncStorage.getItem('plantedTrees');
-      const all = raw ? JSON.parse(raw) : [];
+    Alert.alert(
+      'Remove My Trees',
+      'This will remove all trees you have planted. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove My Trees',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const uid = auth.currentUser?.uid;
+              const raw = await AsyncStorage.getItem('plantedTrees');
+              const all = raw ? JSON.parse(raw) : [];
 
-      const filtered = uid ? all.filter((t) => t.userId !== uid) : [];
-      await AsyncStorage.setItem('plantedTrees', JSON.stringify(filtered));
-      setTreesPlanted(0);
-      Alert.alert('Done', 'All your planted trees have been removed on this device.');
-    } catch (e) {
-      Alert.alert('Error', 'Could not remove your trees. Please try again.');
-    }
+              const filtered = uid ? all.filter((t) => t.userId !== uid) : [];
+              await AsyncStorage.setItem('plantedTrees', JSON.stringify(filtered));
+              setTreesPlanted(0);
+              Alert.alert('Done', 'All your planted trees have been removed. The map will reload markers on focus.');
+            } catch (e) {
+              Alert.alert('Error', 'Could not remove your trees. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleClearAllTrees = async () => {
@@ -79,9 +92,37 @@ export default function ProfileScreen() {
             try {
               await AsyncStorage.setItem('plantedTrees', JSON.stringify([]));
               setTreesPlanted(0);
-              Alert.alert('Done', 'All trees have been removed from the map.');
+              Alert.alert('Done', 'All trees have been removed from the map. The map will reload markers on focus.');
             } catch (e) {
               Alert.alert('Error', 'Could not remove trees. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearMyGarbage = async () => {
+    Alert.alert(
+      'Clear My Garbage Collection',
+      'This will clear all your garbage collection records. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear My Records',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const uid = auth.currentUser?.uid;
+              const raw = await AsyncStorage.getItem('garbagePoints');
+              const all = raw ? JSON.parse(raw) : [];
+
+              const filtered = uid ? all.filter((g) => g.userId !== uid) : [];
+              await AsyncStorage.setItem('garbagePoints', JSON.stringify(filtered));
+              setGarbageCleaned(0);
+              Alert.alert('Done', 'Your garbage collection records have been cleared.');
+            } catch (e) {
+              Alert.alert('Error', 'Could not clear your records. Please try again.');
             }
           },
         },
@@ -124,6 +165,10 @@ export default function ProfileScreen() {
 
       <TouchableOpacity style={styles.removeButton} onPress={handleClearMyTrees}>
         <Text style={styles.removeButtonText}>Remove My Trees</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.removeButton, styles.garbageButton]} onPress={handleClearMyGarbage}>
+        <Text style={styles.removeButtonText}>Clear My Garbage Records</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.removeButton, styles.removeAllButton]} onPress={handleClearAllTrees}>
@@ -221,5 +266,8 @@ const styles = StyleSheet.create({
   },
   removeAllButton: {
     backgroundColor: '#d32f2f',
+  },
+  garbageButton: {
+    backgroundColor: '#FF6B35',
   },
 });
